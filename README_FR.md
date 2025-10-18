@@ -101,7 +101,7 @@ L’objectif est de **préserver et documenter le travail**, même si le dévelo
 ## Notes de l’auteur
 
 Ce dépôt représente le **début d’un long projet d’expérimentations** pour moderniser, analyser et optimiser les outils de compilation Source pour Garry’s Mod.  
-L’accent est mis sur la **recherche, l’apprentissage et la curiosité technique**, plutôt que sur la livraison de binaires prêts à l’usage.
+L’accent est mis sur la **recherche, l’apprentissage et la curiosité technique**, plutôt que sur la livraison d'exécutables prêts à l’usage.
 
 > “Ce n’est que le commencement d’une longue série d’expériences et d’idées.”
 
