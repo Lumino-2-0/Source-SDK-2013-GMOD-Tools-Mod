@@ -1,5 +1,4 @@
-﻿  Un sous-répertoire ou un fichier ..\lib\public\x64 existe déjà.
-  3dnow.cpp
+﻿  3dnow.cpp
   almostequal.cpp
   anorms.cpp
   bumpvects.cpp
@@ -21,4 +20,4 @@
   ssenoise.cpp
   vector.cpp
   vmatrix.cpp
-  mathlib_win64.vcxproj -> C:\Users\lumin\Desktop\SourceSDK2013-64-ficool\src\lib\public\x64\mathlib.lib
+  mathlib_win64.vcxproj -> C:\Users\lumin\Desktop\Source-SDK-2013-GMOD-Tools-Mod-main\src\lib\public\x64\mathlib.lib

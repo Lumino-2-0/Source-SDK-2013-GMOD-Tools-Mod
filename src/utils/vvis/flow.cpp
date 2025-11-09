@@ -186,80 +186,110 @@ void OpenCLManager::cleanup() {
 
 
 // Flood fill global GPU avec convergence
+
 void MassiveFloodFillGPU()
 {
-	static cl_mem d_portalflood = nullptr, d_portalvis = nullptr, d_changed = nullptr;
-	static int last_numportals = 0, last_portallongs = 0;
-	cl_int err = 0;
+    static cl_mem d_portalflood = nullptr, d_portalvis = nullptr, d_changed = nullptr;
+    static int last_numportals = 0, last_portallongs = 0;
+    cl_int err = 0;
 
-	int numportals = g_numportals * 2;
-	int portallongs = ::portallongs;
+    int numportals = g_numportals * 2;
+    int portallongs = ::portallongs;
 
-	// (Ré)allouer les buffers OpenCL si la taille change
-	if (!d_portalflood || !d_portalvis || !d_changed ||
-		last_numportals != numportals || last_portallongs != portallongs)
-	{
-		if (d_portalflood) clReleaseMemObject(d_portalflood);
-		if (d_portalvis) clReleaseMemObject(d_portalvis);
-		if (d_changed) clReleaseMemObject(d_changed);
+    // (Ré)allouer les buffers OpenCL si la taille change
+    if (!d_portalflood || !d_portalvis || !d_changed ||
+        last_numportals != numportals || last_portallongs != portallongs)
+    {
+        if (d_portalflood) clReleaseMemObject(d_portalflood);
+        if (d_portalvis) clReleaseMemObject(d_portalvis);
+        if (d_changed) clReleaseMemObject(d_changed);
 
-		d_portalflood = clCreateBuffer(g_clManager.context, CL_MEM_READ_ONLY, sizeof(unsigned int) * numportals * portallongs, nullptr, &err);
-		d_portalvis = clCreateBuffer(g_clManager.context, CL_MEM_READ_WRITE, sizeof(unsigned int) * numportals * portallongs, nullptr, &err);
-		d_changed = clCreateBuffer(g_clManager.context, CL_MEM_READ_WRITE, sizeof(int), nullptr, &err);
+        d_portalflood = clCreateBuffer(g_clManager.context, CL_MEM_READ_ONLY, sizeof(unsigned int) * numportals * portallongs, nullptr, &err);
+        d_portalvis   = clCreateBuffer(g_clManager.context, CL_MEM_READ_WRITE, sizeof(unsigned int) * numportals * portallongs, nullptr, &err);
+        d_changed     = clCreateBuffer(g_clManager.context, CL_MEM_READ_WRITE, sizeof(int), nullptr, &err);
 
-		last_numportals = numportals;
-		last_portallongs = portallongs;
-	}
+        last_numportals = numportals;
+        last_portallongs = portallongs;
+    }
 
-	// Copier les données CPU→GPU (portalflood et portalvis)
-	std::vector<unsigned int> portalflood_flat(numportals * portallongs, 0u);
-	std::vector<unsigned int> portalvis_flat(numportals * portallongs, 0u);
-	for (int i = 0; i < numportals; ++i) {
-		portal_t* p = &portals[i];
-		long* src = (long*)p->portalflood;
-		long* vis = (long*)p->portalvis;
-		for (int j = 0; j < portallongs; ++j) {
-			portalflood_flat[i * portallongs + j] = src[j];
-			portalvis_flat[i * portallongs + j] = vis[j];
-		}
-	}
-	clEnqueueWriteBuffer(g_clManager.queue, d_portalflood, CL_TRUE, 0, sizeof(unsigned int) * portalflood_flat.size(), portalflood_flat.data(), 0, nullptr, nullptr);
-	clEnqueueWriteBuffer(g_clManager.queue, d_portalvis, CL_TRUE, 0, sizeof(unsigned int) * portalvis_flat.size(), portalvis_flat.data(), 0, nullptr, nullptr);
+    // Préparation CPU → GPU
+    std::vector<unsigned int> portalflood_flat(numportals * portallongs, 0u);
+    std::vector<unsigned int> portalvis_flat(numportals * portallongs, 0u);
+    for (int i = 0; i < numportals; ++i) {
+        portal_t* p = &portals[i];
+        long* src = (long*)p->portalflood;
+        long* vis = (long*)p->portalvis;
+        for (int j = 0; j < portallongs; ++j) {
+            portalflood_flat[i * portallongs + j] = src[j];
+            portalvis_flat[i * portallongs + j]   = vis[j];
+        }
+    }
 
-	// Préparer le kernel
-	cl_kernel kernel = g_clManager.floodfill_kernel;
-	clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_portalflood);
-	clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_portalvis);
-	clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_changed);
-	clSetKernelArg(kernel, 3, sizeof(int), &numportals);
-	clSetKernelArg(kernel, 4, sizeof(int), &portallongs);
-	int inner_iters = 256; // Ajuste selon la charge, plus = moins d'aller-retour CPU/GPU
-	clSetKernelArg(kernel, 5, sizeof(int), &inner_iters);
+    clEnqueueWriteBuffer(g_clManager.queue, d_portalflood, CL_TRUE, 0, sizeof(unsigned int) * portalflood_flat.size(), portalflood_flat.data(), 0, nullptr, nullptr);
+    clEnqueueWriteBuffer(g_clManager.queue, d_portalvis,   CL_TRUE, 0, sizeof(unsigned int) * portalvis_flat.size(),   portalvis_flat.data(),   0, nullptr, nullptr);
 
-	size_t global[2] = { (size_t)numportals, (size_t)portallongs };
+    // Kernel setup
+    cl_kernel kernel = g_clManager.floodfill_kernel;
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_portalflood);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_portalvis);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_changed);
+    clSetKernelArg(kernel, 3, sizeof(int), &numportals);
+    clSetKernelArg(kernel, 4, sizeof(int), &portallongs);
+    int inner_iters = 256;
+    clSetKernelArg(kernel, 5, sizeof(int), &inner_iters);
 
-	// Floodfill jusqu'à convergence (changed==0)
-	int changed = 1;
-	while (changed) {
-		changed = 0;
-		clEnqueueWriteBuffer(g_clManager.queue, d_changed, CL_TRUE, 0, sizeof(int), &changed, 0, nullptr, nullptr);
+    size_t global[2] = { (size_t)numportals, (size_t)portallongs };
 
-		clEnqueueNDRangeKernel(g_clManager.queue, kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr);
-		clFinish(g_clManager.queue);
+    // ---------- Boucle de convergence ----------
+    int changed = 1;
+    int iter = 0;
+    std::chrono::high_resolution_clock::time_point tStart = std::chrono::high_resolution_clock::now();
 
-		clEnqueueReadBuffer(g_clManager.queue, d_changed, CL_TRUE, 0, sizeof(int), &changed, 0, nullptr, nullptr);
-	}
+    Msg("PortalFlow (GPU):       ");
+    while (changed)
+    {
+        iter++;
+        changed = 0;
+        clEnqueueWriteBuffer(g_clManager.queue, d_changed, CL_TRUE, 0, sizeof(int), &changed, 0, nullptr, nullptr);
 
-	// Lire le résultat final GPU→CPU
-	clEnqueueReadBuffer(g_clManager.queue, d_portalvis, CL_TRUE, 0, sizeof(unsigned int) * portalvis_flat.size(), portalvis_flat.data(), 0, nullptr, nullptr);
+        auto t0 = std::chrono::high_resolution_clock::now();
+        clEnqueueNDRangeKernel(g_clManager.queue, kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr);
+        clFinish(g_clManager.queue);
+        auto t1 = std::chrono::high_resolution_clock::now();
 
-	for (int i = 0; i < numportals; ++i) {
-		portal_t* p = &portals[i];
-		long* vis = (long*)p->portalvis;
-		for (int j = 0; j < portallongs; ++j)
-			vis[j] = portalvis_flat[i * portallongs + j];
-	}
+        clEnqueueReadBuffer(g_clManager.queue, d_changed, CL_TRUE, 0, sizeof(int), &changed, 0, nullptr, nullptr);
+
+        // Affiche un tick de progression toutes les 10 % des itérations observées
+        if (iter == 1 || (iter % 2 == 0))
+        {
+            double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+            Msg("%d...", iter % 10 == 0 ? iter / 10 : iter);
+            if (iter % 10 == 0) Msg(" (%.1f ms)\n", ms);
+        }
+
+        if (iter > 1000)
+        {
+            Msg("\n[OpenCL|GPU-Mod] Avertissement : dépassement de 1000 itérations (abandon sécurité)\n");
+            break;
+        }
+    }
+
+    auto tEnd = std::chrono::high_resolution_clock::now();
+    double total_ms = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
+    Msg(" (%d itérations, %.1f ms)\n", iter, total_ms);
+
+    // ---------- Lecture finale GPU → CPU ----------
+    clEnqueueReadBuffer(g_clManager.queue, d_portalvis, CL_TRUE, 0, sizeof(unsigned int) * portalvis_flat.size(), portalvis_flat.data(), 0, nullptr, nullptr);
+
+    for (int i = 0; i < numportals; ++i) {
+        portal_t* p = &portals[i];
+        long* vis = (long*)p->portalvis;
+        for (int j = 0; j < portallongs; ++j)
+            vis[j] = portalvis_flat[i * portallongs + j];
+    }
 }
+
+
 // Compte le nombre de bits à 1 pour chaque portail (GPU)
 void CountBitsGPU(std::vector<unsigned int>& portalvis_flat, std::vector<int>& out_counts, int numportals, int portallongs)
 {
@@ -976,9 +1006,6 @@ void RecursiveLeafFlow(int leafnum, threaddata_t* thread, pstack_t* prevstack)
 */
 void PortalFlow(int iThread, int portalnum)
 {
-
-	// Calcul GPU
-	MassiveFloodFillGPU();
 
 	// Récupération du portail courant (attention : sorted_portals !)
 	portal_t* p = sorted_portals[portalnum];

@@ -1,0 +1,113 @@
+
+
+
+24 threads
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+num_entities == MAX_MAP_ENTITIES
+
+
+24 threads
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+num_entities == MAX_MAP_ENTITIES
+
+
+24 threads
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.prt
+LoadPortals: couldn't read c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.prt
+
+
+
+24 threads
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.prt
+5318 portalclusters
+14817 numportals
+0...1...2...3...4...5...6...7...8...9...10VVIS GPU: MassiveFloodFillGPU...
+Optimized: 421786 visible clusters (2.32%)
+Total clusters visible: 18195440
+Average clusters visible: 3421
+Building PAS...
+Average clusters audible: 4711
+visdatasize:6561526  compressed from 7147392
+writing c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+MSG_FILEWRITE - Filesystem was asked to write to 'c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp', but we don't own that location. Allowing.
+3 seconds elapsed
+
+
+
+24 threads
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.prt
+5318 portalclusters
+14817 numportals
+0...1...2...3...4...5...6...7...8...9...10PortalFlow (GPU):       0...1...(2)
+Optimized: 421786 visible clusters (2.32%)
+Total clusters visible: 18195440
+Average clusters visible: 3421
+Building PAS...
+Average clusters audible: 4711
+visdatasize:6561526  compressed from 7147392
+writing c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+MSG_FILEWRITE - Filesystem was asked to write to 'c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp', but we don't own that location. Allowing.
+2 seconds elapsed
+
+
+
+24 threads
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.prt
+5318 portalclusters
+14817 numportals
+0...1...2...3...4...5...6...7...8...9...10PortalFlow (GPU):       0...1...(2)
+Comparaison GPU/CPU PortalFlow sur 100 portails aléatoires...
+0...1...2...3...4...5...6...7...8...9...10Différences détectées : 0 / 100 portails testés
+Optimized: 421786 visible clusters (2.32%)
+Total clusters visible: 18195440
+Average clusters visible: 3421
+Building PAS...
+Average clusters audible: 4711
+visdatasize:6561526  compressed from 7147392
+writing c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+MSG_FILEWRITE - Filesystem was asked to write to 'c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp', but we don't own that location. Allowing.
+2 seconds elapsed
+
+
+
+24 threads
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.prt
+5318 portalclusters
+14817 numportals
+0...1...2...3...4...5...6...7...8...9...10PortalFlow (GPU):       0...1...(2)
+Comparaison GPU/CPU PortalFlow sur 100 portails aléatoires...
+0...1...2...3...4...5...6...7...8...9...10Différences détectées : 0 / 100 portails testés
+Optimized: 421786 visible clusters (2.32%)
+Total clusters visible: 18195440
+Average clusters visible: 3421
+Building PAS...
+Average clusters audible: 4711
+visdatasize:6561526  compressed from 7147392
+writing c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+MSG_FILEWRITE - Filesystem was asked to write to 'c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp', but we don't own that location. Allowing.
+2 seconds elapsed
+
+
+
+24 threads
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+reading c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.prt
+5318 portalclusters
+14817 numportals
+0...1...2...3...4...5...6...7...8...9...10PortalFlow (GPU):       1...2... (2 itérations, 94.2 ms)
+Comparaison GPU/CPU PortalFlow sur 100 portails aléatoires...
+0...1...2...3...4...5...6...7...8...9...10Différences détectées : 0 / 100 portails testés
+Optimized: 421786 visible clusters (2.32%)
+Total clusters visible: 18195440
+Average clusters visible: 3421
+Building PAS...
+Average clusters audible: 4711
+visdatasize:6561526  compressed from 7147392
+writing c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp
+MSG_FILEWRITE - Filesystem was asked to write to 'c:\users\lumin\desktop\source-sdk-2013-gmod-tools-mod-main\map_test\gm_kindercity_night.bsp', but we don't own that location. Allowing.
+2 seconds elapsed

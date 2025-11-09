@@ -1,5 +1,4 @@
-﻿  Un sous-répertoire ou un fichier ..\lib\public\x64 existe déjà.
-  LzmaDec.c
+﻿  LzmaDec.c
   bitbuf.cpp
   byteswap.cpp
   characterset.cpp
@@ -40,11 +39,11 @@
   utlbufferutil.cpp
   utlstring.cpp
   utlsymbol.cpp
-C:\Users\lumin\Desktop\SourceSDK2013-64-ficool\src\tier1\utlstring.cpp(98,3): warning C4267: 'argument' : conversion de 'size_t' en 'const T', perte possible de données
-C:\Users\lumin\Desktop\SourceSDK2013-64-ficool\src\tier1\utlstring.cpp(98,3): warning C4267:         with
-C:\Users\lumin\Desktop\SourceSDK2013-64-ficool\src\tier1\utlstring.cpp(98,3): warning C4267:         [
-C:\Users\lumin\Desktop\SourceSDK2013-64-ficool\src\tier1\utlstring.cpp(98,3): warning C4267:             T=int
-C:\Users\lumin\Desktop\SourceSDK2013-64-ficool\src\tier1\utlstring.cpp(98,3): warning C4267:         ]
-C:\Users\lumin\Desktop\SourceSDK2013-64-ficool\src\tier1\strtools.cpp(285,27): warning C4267: 'argument' : conversion de 'size_t' en 'int', perte possible de données
+C:\Users\lumin\Desktop\Source-SDK-2013-GMOD-Tools-Mod-main\src\tier1\utlstring.cpp(98,3): warning C4267: 'argument' : conversion de 'size_t' en 'const T', perte possible de données
+C:\Users\lumin\Desktop\Source-SDK-2013-GMOD-Tools-Mod-main\src\tier1\utlstring.cpp(98,3): warning C4267:         with
+C:\Users\lumin\Desktop\Source-SDK-2013-GMOD-Tools-Mod-main\src\tier1\utlstring.cpp(98,3): warning C4267:         [
+C:\Users\lumin\Desktop\Source-SDK-2013-GMOD-Tools-Mod-main\src\tier1\utlstring.cpp(98,3): warning C4267:             T=int
+C:\Users\lumin\Desktop\Source-SDK-2013-GMOD-Tools-Mod-main\src\tier1\utlstring.cpp(98,3): warning C4267:         ]
+C:\Users\lumin\Desktop\Source-SDK-2013-GMOD-Tools-Mod-main\src\tier1\strtools.cpp(285,27): warning C4267: 'argument' : conversion de 'size_t' en 'int', perte possible de données
   processor_detect.cpp
-  tier1_win64.vcxproj -> C:\Users\lumin\Desktop\SourceSDK2013-64-ficool\src\lib\public\x64\tier1.lib
+  tier1_win64.vcxproj -> C:\Users\lumin\Desktop\Source-SDK-2013-GMOD-Tools-Mod-main\src\lib\public\x64\tier1.lib

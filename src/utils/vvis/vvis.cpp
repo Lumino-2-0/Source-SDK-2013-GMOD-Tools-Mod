@@ -291,19 +291,19 @@ CalcPortalVis
 */
 void CalcPortalVis(void)
 {
-	int		i;
+	int i;
 
-	// fastvis just uses mightsee for a very loose bound
 	if (fastvis)
 	{
+		// BaseVis trivial
 		for (i = 0; i < g_numportals * 2; i++)
 		{
-			portals[i].portalvis = portals[i].portalflood;
+			portals[i].portalvis = (unsigned char*)malloc(portalbytes);
+			memcpy(portals[i].portalvis, portals[i].portalflood, portalbytes);
 			portals[i].status = stat_done;
 		}
 		return;
 	}
-
 
 #ifdef MPI
 	if (g_bUseMPI)
@@ -313,23 +313,58 @@ void CalcPortalVis(void)
 	else
 #endif
 	{
-		//C'est cela qui s'éxecute si -fastvis n'est pas spécifié (donc le mode super long [+de 24h pour une map de taille moyenne])
-		// La méthode RunThreadsOnIndividual va lancer plusieurs threads qui vont chacun éxécuter la fonction PortalFlow
-		// g_numportals*2 est le nombre total de portails (donc le nombre de fois que la fonction PortalFlow sera éxécutée)
-		// paramètre true : chaque thread va éxécuter la fonction PortalFlow avec un numéro de portail différent
-		// Donc ici, les calculs de visibilité sont faits en parallèle sur plusieurs threads --> On pourrai donc faire la même chose avec un GPU NVIDIA (CUDA) car on parallélise énormément de calculs aussi
-		
-		// --- PATCH GPU ---
 		extern OpenCLManager g_clManager;
 
-		// Initialisation OpenCL AVANT le log d'avancement
 		g_clManager.init_once();
 
+		if (!g_clManager.ok || CommandLine()->CheckParm("-nogpuvis"))
+		{
+			RunThreadsOnIndividual(g_numportals * 2, true, PortalFlow);
+		}
+		else
+		{
+			MassiveFloodFillGPU();
 
-		// Un seul appel GPU pour tout calculer
-		RunThreadsOnIndividual(g_numportals * 2, true, PortalFlow);
+			//if (CommandLine()->CheckParm("-comparevis"))
+			//{
+				Msg("Comparaison GPU/CPU PortalFlow sur 100 portails aléatoires...\n");
 
-		// Marquer tous les portails comme "done"
+				// On limite à 100 portails OU au nombre réel disponible
+				int testCount = g_numportals * 2;
+				if (testCount > 100)
+					testCount = 100;
+
+				// Snapshot des résultats GPU avant de lancer le CPU
+				// Important : PortalFlow travaille sur sorted_portals[], donc on copie aussi à partir de sorted_portals
+				std::vector<unsigned char> gpuCopies;
+				gpuCopies.resize(testCount * portalbytes);
+
+				for (int i = 0; i < testCount; ++i)
+				{
+					portal_t* p = sorted_portals[i];
+					memcpy(&gpuCopies[i * portalbytes], p->portalvis, portalbytes);
+				}
+
+				// Lancer le PortalFlow CPU sur les mêmes portails (0..testCount-1)
+				RunThreadsOnIndividual(testCount, true, PortalFlow);
+
+				int mismatches = 0;
+
+				for (int i = 0; i < testCount; ++i)
+				{
+					portal_t* p = sorted_portals[i];
+
+					// Comparer la version GPU (snapshot) avec la version CPU recalculée
+					if (memcmp(&gpuCopies[i * portalbytes], p->portalvis, portalbytes) != 0)
+					{
+						++mismatches;
+					}
+				}
+
+				Msg("Différences détectées : %d / %d portails testés\n", mismatches, testCount);
+			//}
+		}
+
 		for (i = 0; i < g_numportals * 2; i++)
 			portals[i].status = stat_done;
 	}
@@ -1114,7 +1149,7 @@ int RunVVis( int argc, char **argv )
 	double		start, end;
 
 
-	Msg( "Valve Software - Lumastor & IronKnight Mod - vvis.exe (%s)\n", __DATE__ );
+	Msg( "Valve Software - Lumastor & IronKnight Mod - vvis GPU (%s)\n", __DATE__ );
 
 	verbose = false;
 
@@ -1256,6 +1291,7 @@ main
 */
 int main (int argc, char **argv)
 {
+	SetConsoleOutputCP(CP_UTF8);
 	CommandLine()->CreateCmdLine( argc, argv );
 
 	MathLib_Init( 2.2f, 2.2f, 0.0f, 1.0f, false, false, false, false );
