@@ -78,8 +78,24 @@ cmake --build build --config Release
 Compiled binaries will appear in:
 
 ```
-/build/game/bin/
+/bin/vvis_GPU.exe (Example)
 ```
+### ! Warning !
+You will need the subfolder and the dll inside to make tool work : ```/bin/bin/x64/filesystem_stdio.dll```
+As for the ```filesystem_stdio.dll```, you will need to keep ```tier0.dll``` and ```vstdlib.dll``` next to the EXEcutable/Release.
+
+## Example of usage :
+## Usage of the tool is the same way as the originals ones.
+
+### (VVIS GPU) Global :
+```
+PathToYourClone\bin\vvis_GPU.exe [SpecificOptions] -game "[PathToGameFolder]" "[PathToBspFile]"
+```
+### (VVIS GPU) Specific example :
+```
+.\vvis_GPU.exe -threads 24 -game "C:\Program Files (x86)\Steam\steamapps\common\GarrysMod\garrysmod" "C:\Program Files (x86)\Steam\steamapps\common\GarrysMod\garrysmod\map\gm_kindercity"
+```
+
 
 ## References and Resources
 
