@@ -43,7 +43,7 @@ typedef struct { cl_plane_t plane; int leaf; float origin[3]; float radius; int 
 typedef struct { int first_portal; int num_portals; } cl_leaf_t;
 
 // Kernel principal : chaque work-item calcule portalvis pour un portail de base
-__kernel void floodfill_kernel(__global const cl_portal_t* portals,
+__kernel void recursive_leaf_flow(__global const cl_portal_t* portals,
                                __global const cl_leaf_t* leafs,
                                __global const cl_winding_t* windings,
                                __global const uint* portalflood_bits,   // bitmasks portalflood (32-bit chunks)
@@ -328,21 +328,28 @@ void OpenCLManager::init_once() {
 	const char* kernelSrc = floodfill_kernel_src;
 	program = clCreateProgramWithSource(context, 1, &kernelSrc, NULL, &err);
 	if (err != CL_SUCCESS) { log("Erreur clCreateProgramWithSource"); return; }
-	std::ostringstream options;
-	options << "-D MAX_STACK_DEPTH=" << 64 << " -D MAX_PORTAL_LONGS=" << portallongs;
-	// portallongs étant une variable globale connue après lecture du .PRT
-	err = clBuildProgram(program, 1, &device, options.str().c_str(), NULL, NULL);
-	if (err != CL_SUCCESS) {
-		// Afficher les erreurs de compilation s’il y en a
-		char logbuf[16384]; size_t loglen;
-		clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(logbuf), logbuf, &loglen);
-		std::cerr << "Erreur compilation OpenCL: " << logbuf << std::endl;
-		return;
+
+	std::ostringstream opts;
+	opts << "-DMAX_POINTS_ON_FIXED_WINDING=" << MAX_POINTS_ON_FIXED_WINDING;
+
+	// ... puis lancer la compilation du programme OpenCL avec ces options :
+	err = clBuildProgram(program, 1, &device, opts.str().c_str(), nullptr, nullptr);
+	if (err != CL_SUCCESS)
+	{
+		Msg("[OpenCL|GPU-Mod] Erreur compilation programme (err=%d)\n", err);
+
+		size_t log_size = 0;
+		clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+
+		std::vector<char> build_log(log_size);
+		clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, build_log.data(), nullptr);
+
+		Msg("[OpenCL|GPU-Mod] Build Log :\n%s\n", build_log.data());
 	}
 	// 4. Créer les kernels
 	floodfill_kernel = clCreateKernel(program, "floodfill_kernel", &err);
+
 	if (err != CL_SUCCESS) { log("Kernel floodfill introuvable"); return; }
-	// (optionnel) countbits_kernel = clCreateKernel(program, "countbits_kernel", ...);
 
 	ok = true;
 	log("Initialisation OpenCL réussie");
