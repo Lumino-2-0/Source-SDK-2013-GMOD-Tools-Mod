@@ -329,14 +329,15 @@ void OpenCLManager::init_once() {
 	program = clCreateProgramWithSource(context, 1, &kernelSrc, NULL, &err);
 	if (err != CL_SUCCESS) { log("Erreur clCreateProgramWithSource"); return; }
 
-	std::ostringstream opts;
-	opts << "-DMAX_POINTS_ON_FIXED_WINDING=" << MAX_POINTS_ON_FIXED_WINDING;
 
+	std::ostringstream options;
+	options << "-DMAX_PORTAL_LONGS=" << portallongs;
+	options << " -DMAX_POINTS_ON_FIXED_WINDING=128";
 	// ... puis lancer la compilation du programme OpenCL avec ces options :
-	err = clBuildProgram(program, 1, &device, opts.str().c_str(), nullptr, nullptr);
+	err = clBuildProgram(program, 1, &device, options.str().c_str(), nullptr, nullptr);
 	if (err != CL_SUCCESS)
 	{
-		Msg("[OpenCL|GPU-Mod] Erreur compilation programme (err=%d)\n", err);
+		Msg("[OpenCL|GPU-Mod] Erreur compilation OpenCL (err=%d)\n", err);
 
 		size_t log_size = 0;
 		clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
@@ -347,9 +348,9 @@ void OpenCLManager::init_once() {
 		Msg("[OpenCL|GPU-Mod] Build Log :\n%s\n", build_log.data());
 	}
 	// 4. Créer les kernels
-	floodfill_kernel = clCreateKernel(program, "floodfill_kernel", &err);
+	floodfill_kernel = clCreateKernel(program, "recursive_leaf_flow", &err);
 
-	if (err != CL_SUCCESS) { log("Kernel floodfill introuvable"); return; }
+	if (err != CL_SUCCESS) { log("Kernel RLF introuvable"); return; }
 
 	ok = true;
 	log("Initialisation OpenCL réussie");
@@ -462,11 +463,16 @@ void MassiveFloodFillGPU() {
 	err |= clSetKernelArg(k, 6, sizeof(int), &portallongs);
 	if (err != CL_SUCCESS) { g_clManager.log("Erreur SetKernelArg"); /* handle error */ }
 
-	size_t globalSize = totalPortals;
+	size_t globalSize = std::min((size_t)totalPortals, (size_t)32768);
 	// On peut aligner sur la taille d’un warp (p. ex. 32 ou 64) : 
 	// globalSize = ((totalPortals + 63) / 64) * 64;
 	err = clEnqueueNDRangeKernel(q, k, 1, NULL, &globalSize, NULL, 0, NULL, NULL);
-	if (err != CL_SUCCESS) { g_clManager.log("Erreur lancement kernel"); /* handle error */ }
+	if (err != CL_SUCCESS)
+	{
+		char errMsg[128];
+		snprintf(errMsg, sizeof(errMsg), "Erreur lancement kernel : code %d", err);
+		g_clManager.log(errMsg);
+	}
 
 	// Attendre la fin du kernel
 	clFinish(q);
@@ -1225,7 +1231,7 @@ void PortalFlow(int iThread, int portalnum)
 	int c_might = CountBits(p->portalflood, g_numportals * 2);
 	int c_can = CountBits(p->portalvis, g_numportals * 2);
 
-	// Si tu veux compter les chaînes, il faut l’adapter (ici, valeur fictive)
+	
 	int c_chains = 1;
 
 	qprintf("portal:%4i  mightsee:%4i  cansee:%4i (%i chains)\n",
