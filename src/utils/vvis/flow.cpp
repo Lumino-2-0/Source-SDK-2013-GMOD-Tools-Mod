@@ -369,142 +369,99 @@ void OpenCLManager::cleanup() {
 
 // Flood fill global GPU avec convergence
 
-void MassiveFloodFillGPU() {
+void MassiveFloodFillGPU()
+{
 	g_clManager.init_once();
-	if (!g_clManager.ok) {
-		// Pas de GPU dispo, on peut soit lancer la version CPU soit sortir avec un message d’erreur
-		g_clManager.log("Pas de GPU, fallback CPU.");
-		// Fallback: on utilise le code existant (par ex. RunThreadsOnIndividual)
-		RunThreadsOnIndividual(g_numportals * 2, true, PortalFlow);
-		return;
-	}
+	assert(g_clManager.ok);
 
-	cl_int err;
-	int totalPortals = g_numportals * 2;
-	// 1. Construire les tableaux cl_portal, cl_leaf, cl_winding en mémoire CPU
-	std::vector<cl_portal_t> portalArray(totalPortals);
-	std::vector<cl_leaf_t> leafArray(portalclusters);
-	std::vector<cl_winding_t> windingArray(totalPortals);
-	std::vector<uint32_t> portalfloodBits(totalPortals * portallongs);
-	std::vector<uint32_t> portalvisBits(totalPortals * portallongs); // output
+	Msg("PortalFlow (GPU|OpenCL):       ");
 
-	// Remplir portalArray et windingArray
-	for (int i = 0; i < totalPortals; ++i) {
-		portal_t& src = portals[i];
-		cl_portal_t& dst = portalArray[i];
-		// Copie du plan
-		dst.plane.normal[0] = src.plane.normal.x;
-		dst.plane.normal[1] = src.plane.normal.y;
-		dst.plane.normal[2] = src.plane.normal.z;
-		dst.plane.dist = src.plane.dist;
-		// Voisin et infos géométriques
-		dst.leaf = src.leaf;
-		dst.origin[0] = src.origin.x;
-		dst.origin[1] = src.origin.y;
-		dst.origin[2] = src.origin.z;
-		dst.radius = src.radius;
-		dst.winding_idx = i; // on associe chaque portail à son index unique
-		// Copier le winding
-		winding_t* w = src.winding;
-		cl_winding_t& dw = windingArray[i];
-		dw.numpoints = w->numpoints;
-		int np = (w->numpoints < 16 ? w->numpoints : 16);
-		for (int p = 0; p < np; ++p) {
-			dw.points[p][0] = w->points[p].x;
-			dw.points[p][1] = w->points[p].y;
-			dw.points[p][2] = w->points[p].z;
+	const int numportals = g_numportals * 2;
+	const int portallongs = ::portallongs;
+	const int batch_size = 512; // Taille du lot (par exemple 512 portails)
+
+	// Itérer en lots de 'batch_size' portails pour limiter la mémoire
+	for (int base = 0; base < numportals; base += batch_size) {
+		int count = std::min(batch_size, numportals - base);
+
+		// Préparation des données pour ce lot (batch) de portails
+		std::vector<unsigned int> portalflood_flat(count * portallongs, 0u);
+		std::vector<unsigned int> portalvis_flat(count * portallongs, 0u);
+		for (int i = 0; i < count; ++i) {
+			portal_t* p = &portals[base + i];
+			long* src = (long*)p->portalflood;
+			long* vis = (long*)p->portalvis;
+			// Copier les bits initiaux de 'portalflood' et 'portalvis' dans les vecteurs plats
+			for (int j = 0; j < portallongs; ++j) {
+				portalflood_flat[i * portallongs + j] = src[j];
+				portalvis_flat[i * portallongs + j] = vis[j];
+			}
 		}
-		// Remplir portalfloodBits (on copie le buffer byte* en uint32_t*)
-		// On suppose que portallongs correspond à la taille en uint32 (4 octets) du mask
-		uint32_t* dstBits = portalfloodBits.data() + i * portallongs;
-		uint32_t* srcBits = (uint32_t*)src.portalflood;
-		for (int j = 0; j < portallongs; ++j) {
-			dstBits[j] = srcBits[j];
+
+		// Création des buffers OpenCL pour ce lot (utilisation de COPY_HOST_PTR simplifie l'écriture)
+		cl_int err;
+		cl_mem d_portalflood = clCreateBuffer(
+			g_clManager.context,
+			CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+			sizeof(unsigned int) * portalflood_flat.size(),
+			portalflood_flat.data(), &err);
+		cl_mem d_portalvis = clCreateBuffer(
+			g_clManager.context,
+			CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+			sizeof(unsigned int) * portalvis_flat.size(),
+			portalvis_flat.data(), &err);
+		cl_mem d_changed = clCreateBuffer(
+			g_clManager.context,
+			CL_MEM_READ_WRITE,
+			sizeof(int), nullptr, &err);
+
+		// Configuration du kernel OpenCL pour ce lot
+		cl_kernel kernel = g_clManager.floodfill_kernel;
+		clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_portalflood);
+		clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_portalvis);
+		clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_changed);
+		// On passe 'count' (nombre de portails dans ce lot) au lieu de numportals
+		clSetKernelArg(kernel, 3, sizeof(int), &count);
+		clSetKernelArg(kernel, 4, sizeof(int), &portallongs);
+		int inner_iters = 256;
+		clSetKernelArg(kernel, 5, sizeof(int), &inner_iters);
+
+		size_t globalSize[2] = { (size_t)count, (size_t)portallongs };
+		int changed = 1;
+		int iter = 0;
+		// Boucle de convergence pour ce lot (identique à l'original)
+		while (changed) {
+			changed = 0;
+			clEnqueueWriteBuffer(g_clManager.queue, d_changed, CL_TRUE, 0, sizeof(int), &changed, 0, nullptr, nullptr);
+			clEnqueueNDRangeKernel(g_clManager.queue, kernel, 2, nullptr, globalSize, nullptr, 0, nullptr, nullptr);
+			clFinish(g_clManager.queue);
+			clEnqueueReadBuffer(g_clManager.queue, d_changed, CL_TRUE, 0, sizeof(int), &changed, 0, nullptr, nullptr);
+			++iter;
+			if (iter > 1000) {
+				Msg("\n[OpenCL|GPU-Mod] Avertissement : dépassement de 1000 itérations (abandon sécurité)\n");
+				break;
+			}
 		}
-		// portalvisBits initial sera rempli par le kernel, inutile de l'initialiser (mais on peut à 0 par prudence)
+
+		// Lecture des résultats du GPU pour ce lot
+		clEnqueueReadBuffer(g_clManager.queue, d_portalvis, CL_TRUE, 0,
+			sizeof(unsigned int) * portalvis_flat.size(),
+			portalvis_flat.data(), 0, nullptr, nullptr);
+
+		// Copier les résultats dans la structure principale 'portals'
+		for (int i = 0; i < count; ++i) {
+			portal_t* p = &portals[base + i];
+			long* vis = (long*)p->portalvis;
+			for (int j = 0; j < portallongs; ++j) {
+				vis[j] = portalvis_flat[i * portallongs + j];
+			}
+		}
+
+		// Libération des buffers OpenCL du lot
+		clReleaseMemObject(d_portalflood);
+		clReleaseMemObject(d_portalvis);
+		clReleaseMemObject(d_changed);
 	}
-
-	// Remplir leafArray en construisant l'index global des portails
-	int portalIndexAccum = 0;
-	for (int leafnum = 0; leafnum < portalclusters; ++leafnum) {
-		leafArray[leafnum].first_portal = portalIndexAccum;
-		leafArray[leafnum].num_portals = leafs[leafnum].portals.Count();
-		// Dans le tableau portalArray, nous avons chaque portail global.
-		// Il faut s’assurer que portalArray est trié de la même manière que leafs[x].portals.
-		// Nous avons rempli portalArray séquentiellement avec portals[i] tel quel, or leafs[].portals
-		// peut avoir un ordre spécifique. Ici, on suppose que portals[] global est tel que 
-		// portals[i] de leaf X apparaissent groupés (ce qui est probable dans le chargement du .PRT).
-		// Sinon, il faudrait créer un tableau séparé pour stocker les index triés par leaf.
-		portalIndexAccum += leafArray[leafnum].num_portals;
-	}
-
-	// 2. Créer les buffers OpenCL et transférer les données
-	cl_context ctx = g_clManager.context;
-	cl_command_queue q = g_clManager.queue;
-	size_t portalBufSize = portalArray.size() * sizeof(cl_portal_t);
-	size_t leafBufSize = leafArray.size() * sizeof(cl_leaf_t);
-	size_t windBufSize = windingArray.size() * sizeof(cl_winding_t);
-	size_t visBufSize = portalvisBits.size() * sizeof(uint32_t);
-	// portalfloodBits a la même taille que portalvisBits
-	cl_mem bufPortals = clCreateBuffer(ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, portalBufSize, portalArray.data(), &err);
-	cl_mem bufLeafs = clCreateBuffer(ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, leafBufSize, leafArray.data(), &err);
-	cl_mem bufWindings = clCreateBuffer(ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, windBufSize, windingArray.data(), &err);
-	cl_mem bufPortFlood = clCreateBuffer(ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, visBufSize, portalfloodBits.data(), &err);
-	cl_mem bufPortVisOut = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY, visBufSize, NULL, &err);
-
-	// 3. Configurer et lancer le kernel
-	cl_kernel k = g_clManager.floodfill_kernel;
-	err = clSetKernelArg(k, 0, sizeof(bufPortals), &bufPortals);
-	err |= clSetKernelArg(k, 1, sizeof(bufLeafs), &bufLeafs);
-	err |= clSetKernelArg(k, 2, sizeof(bufWindings), &bufWindings);
-	err |= clSetKernelArg(k, 3, sizeof(bufPortFlood), &bufPortFlood);
-	err |= clSetKernelArg(k, 4, sizeof(bufPortVisOut), &bufPortVisOut);
-	err |= clSetKernelArg(k, 5, sizeof(int), &totalPortals);
-	err |= clSetKernelArg(k, 6, sizeof(int), &portallongs);
-	if (err != CL_SUCCESS) { g_clManager.log("Erreur SetKernelArg"); /* handle error */ }
-
-	size_t globalSize = std::min((size_t)totalPortals, (size_t)32768);
-	// On peut aligner sur la taille d’un warp (p. ex. 32 ou 64) : 
-	// globalSize = ((totalPortals + 63) / 64) * 64;
-	err = clEnqueueNDRangeKernel(q, k, 1, NULL, &globalSize, NULL, 0, NULL, NULL);
-	if (err != CL_SUCCESS)
-	{
-		char errMsg[128];
-		snprintf(errMsg, sizeof(errMsg), "Erreur lancement kernel : code %d", err);
-		g_clManager.log(errMsg);
-	}
-
-	// Attendre la fin du kernel
-	clFinish(q);
-
-	// 4. Récupérer les résultats
-	err = clEnqueueReadBuffer(q, bufPortVisOut, CL_TRUE, 0, visBufSize, portalvisBits.data(), 0, NULL, NULL);
-	if (err != CL_SUCCESS) { g_clManager.log("Erreur ReadBuffer portalvis"); /* handle error */ }
-
-	// Copier les résultats dans les structures d’origine
-	for (int i = 0; i < totalPortals; ++i) {
-		uint32_t* srcBits = portalvisBits.data() + i * portallongs;
-		uint8_t* dstBytes = portals[i].portalvis;  // buffer alloué via malloc dans BasePortalVis
-		// copie en octets
-		memcpy(dstBytes, srcBits, portallongs * sizeof(uint32_t));
-		portals[i].status = stat_done;  // marquer chaque portail comme calculé
-	}
-
-	// Optionnel : calculer les statistiques et affichages (c_might, c_can)
-	for (int i = 0; i < g_numportals; ++i) {
-		portal_t* p = sorted_portals[i];
-		int idx = p - portals; // index global
-		int count_might = CountBits(p->portalflood, g_numportals * 2);
-		int count_can = CountBits(p->portalvis, g_numportals * 2);
-		qprintf("portal:%4i  mightsee:%4i  cansee:%4i (GPU)\n", idx, count_might, count_can);
-	}
-
-	// 5. Libérer les ressources OpenCL temporaires (on peut garder les buffers si on veut relancer sur d'autres maps)
-	clReleaseMemObject(bufPortals);
-	clReleaseMemObject(bufLeafs);
-	clReleaseMemObject(bufWindings);
-	clReleaseMemObject(bufPortFlood);
-	clReleaseMemObject(bufPortVisOut);
 }
 
 
