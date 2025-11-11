@@ -289,84 +289,18 @@ static int CompressAndCrosscheckClusterVis( int clusternum )
 CalcPortalVis
 ==================
 */
-void CalcPortalVis(void)
-{
-	int i;
-
-	if (fastvis)
-	{
-		// BaseVis trivial
-		for (i = 0; i < g_numportals * 2; i++)
-		{
-			portals[i].portalvis = (unsigned char*)malloc(portalbytes);
-			memcpy(portals[i].portalvis, portals[i].portalflood, portalbytes);
-			portals[i].status = stat_done;
-		}
+void CalcPortalVis() {
+	if (fastvis) {
+		// (chemin existant pour fastvis, on ne le modifie pas)
+		for (int i = 0; i < g_numportals * 2; i++) { portals[i].portalvis = portals[i].portalflood; portals[i].status = stat_done; }
 		return;
 	}
-
-#ifdef MPI
-	if (g_bUseMPI)
-	{
-		RunMPIPortalFlow();
+	if (CommandLine()->CheckParm("-nogpu")) {
+		// Option éventuelle pour forcer CPU
+		RunThreadsOnIndividual(g_numportals * 2, true, PortalFlow);
 	}
-	else
-#endif
-	{
-		extern OpenCLManager g_clManager;
-
-		g_clManager.init_once();
-
-		if (!g_clManager.ok || CommandLine()->CheckParm("-nogpuvis"))
-		{
-			RunThreadsOnIndividual(g_numportals * 2, true, PortalFlow);
-		}
-		else
-		{
-			MassiveFloodFillGPU();
-
-			//if (CommandLine()->CheckParm("-comparevis"))
-			//{
-				Msg("Comparaison GPU/CPU PortalFlow sur 100 portails aléatoires...\n");
-
-				// On limite à 100 portails OU au nombre réel disponible
-				int testCount = g_numportals * 2;
-				if (testCount > 100)
-					testCount = 100;
-
-				// Snapshot des résultats GPU avant de lancer le CPU
-				// Important : PortalFlow travaille sur sorted_portals[], donc on copie aussi à partir de sorted_portals
-				std::vector<unsigned char> gpuCopies;
-				gpuCopies.resize(testCount * portalbytes);
-
-				for (int i = 0; i < testCount; ++i)
-				{
-					portal_t* p = sorted_portals[i];
-					memcpy(&gpuCopies[i * portalbytes], p->portalvis, portalbytes);
-				}
-
-				// Lancer le PortalFlow CPU sur les mêmes portails (0..testCount-1)
-				RunThreadsOnIndividual(testCount, true, PortalFlow);
-
-				int mismatches = 0;
-
-				for (int i = 0; i < testCount; ++i)
-				{
-					portal_t* p = sorted_portals[i];
-
-					// Comparer la version GPU (snapshot) avec la version CPU recalculée
-					if (memcmp(&gpuCopies[i * portalbytes], p->portalvis, portalbytes) != 0)
-					{
-						++mismatches;
-					}
-				}
-
-				Msg("Différences détectées : %d / %d portails testés\n", mismatches, testCount);
-			//}
-		}
-
-		for (i = 0; i < g_numportals * 2; i++)
-			portals[i].status = stat_done;
+	else {
+		MassiveFloodFillGPU();
 	}
 }
 

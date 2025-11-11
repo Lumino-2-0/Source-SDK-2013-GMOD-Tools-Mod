@@ -21,5 +21,5 @@
   ssenoise.cpp
   vector.cpp
   vmatrix.cpp
-C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(1564,5): warning MSB8012: TargetPath(C:\Users\lumin\Desktop\bin\mathlib.lib) ne correspond pas à la valeur de la propriété OutputFile (C:\Users\lumin\Desktop\Source-SDK-2013-GMOD-Tools-Mod-main\src\lib\public\x64\mathlib.lib) de Library. Cela peut entraîner une génération incorrecte de votre projet. Pour corriger ce problème, vérifiez que les valeurs des propriétés $(OutDir), $(TargetName) et $(TargetExt) correspondent à la valeur spécifiée dans %(Lib.OutputFile).
-  mathlib_win64.vcxproj -> C:\Users\lumin\Desktop\bin\mathlib.lib
+C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(1564,5): warning MSB8012: TargetPath(C:\Users\lumin\Desktop\GitHub\bin\mathlib.lib) ne correspond pas à la valeur de la propriété OutputFile (C:\Users\lumin\Desktop\GitHub\Source-SDK-2013-GMOD-Tools-Mod\src\lib\public\x64\mathlib.lib) de Library. Cela peut entraîner une génération incorrecte de votre projet. Pour corriger ce problème, vérifiez que les valeurs des propriétés $(OutDir), $(TargetName) et $(TargetExt) correspondent à la valeur spécifiée dans %(Lib.OutputFile).
+  mathlib_win64.vcxproj -> C:\Users\lumin\Desktop\GitHub\bin\mathlib.lib

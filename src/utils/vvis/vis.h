@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+﻿//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -26,7 +26,7 @@ struct plane_t
 };
 
 #define MAX_POINTS_ON_WINDING	64
-#define	MAX_POINTS_ON_FIXED_WINDING	12
+#define	MAX_POINTS_ON_FIXED_WINDING	16
 
 struct winding_t
 {
@@ -107,11 +107,11 @@ extern	int		leafbytes, leaflongs;
 extern	int		portalbytes, portallongs;
 
 
-void LeafFlow (int leafnum);
+// void LeafFlow (int leafnum);
 
 
 void BasePortalVis (int iThread, int portalnum);
-void BetterPortalVis (int portalnum);
+// void BetterPortalVis (int portalnum);
 void PortalFlow (int iThread, int portalnum);
 void WritePortalTrace( const char *source );
 

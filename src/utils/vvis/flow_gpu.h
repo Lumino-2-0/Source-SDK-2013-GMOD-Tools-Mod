@@ -42,13 +42,10 @@ struct OpenCLManager {
     cl_kernel countbits_kernel = nullptr;
     bool ok = false;
     std::mutex init_mutex;
-
-    void log(const std::string& s) {
-        std::cout << "[OpenCL|GPU-Mod] " << s << std::endl;
-    }
+    void log(const std::string& s) { std::cout << "[OpenCL|GPU-Mod] " << s << std::endl; }
     void init_once();
     void cleanup();
 };
-
 extern OpenCLManager g_clManager;
+
 void MassiveFloodFillGPU();
