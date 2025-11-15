@@ -88,6 +88,7 @@ void LeafFlow(int leafnum);
 void BasePortalVis(int iThread, int portalnum);
 void BetterPortalVis(int portalnum);
 void PortalFlow(int iThread, int portalnum);
+void PortalFlow_CPU(int iThread, int portalnum);
 void WritePortalTrace(const char* source);
 
 extern portal_t* sorted_portals[MAX_MAP_PORTALS * 2];

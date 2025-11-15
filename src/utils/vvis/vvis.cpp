@@ -327,7 +327,7 @@ void CalcPortalVis() {
 
 	if (CommandLine()->CheckParm("-nogpu")) {
 		// Forcer le CPU
-		RunThreadsOnIndividual(g_numportals * 2, true, PortalFlow);
+		RunThreadsOnIndividual(g_numportals * 2, true, PortalFlow_CPU);
 	}
 	else {
 		// Tentative GPU
@@ -335,7 +335,7 @@ void CalcPortalVis() {
 		// Si l'init OpenCL a échoué, init_once marque g_clManager.ok=false
 		if (!g_clManager.ok) {
 			Msg("[OpenCL|GPU-Mod] OpenCL non disponible, fallback CPU\n");
-			RunThreadsOnIndividual(g_numportals * 2, true, PortalFlow);
+			RunThreadsOnIndividual(g_numportals * 2, true, PortalFlow_CPU);
 		}
 		else {
 			MassiveFloodFillGPU();

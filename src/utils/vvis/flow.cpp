@@ -1272,8 +1272,9 @@ RecursiveLeafFlow
 Flood fill through the leafs
 If src_portal is NULL, this is the originating leaf
 ==================
+*/
 
-void RecursiveLeafFlow(int leafnum, threaddata_t* thread, pstack_t* prevstack)
+void RecursiveLeafFlow_CPU(int leafnum, threaddata_t* thread, pstack_t* prevstack)
 {
 	pstack_t	stack;
 	portal_t* p;
@@ -1396,7 +1397,7 @@ void RecursiveLeafFlow(int leafnum, threaddata_t* thread, pstack_t* prevstack)
 			// mark the portal as visible
 			SetBit(thread->base->portalvis, pnum);
 
-			RecursiveLeafFlow(p->leaf, thread, &stack);
+			RecursiveLeafFlow_CPU(p->leaf, thread, &stack);
 			continue;
 		}
 
@@ -1412,85 +1413,18 @@ void RecursiveLeafFlow(int leafnum, threaddata_t* thread, pstack_t* prevstack)
 		SetBit(thread->base->portalvis, pnum);
 
 		// flow through it for real
-		RecursiveLeafFlow(p->leaf, thread, &stack);
+		RecursiveLeafFlow_CPU(p->leaf, thread, &stack);
 	}
 }
 
 
-// --------------------
-// GPU-accelerated RecursiveLeafFlow
-// --------------------
-
-void RecursiveLeafFlow(int leafnum, threaddata_t* thread, pstack_t* prevstack)
-{
-	g_clManager.init_once();
-	assert(g_clManager.ok && "OpenCL non initialise !");
-
-	int portallongs = ::portallongs;
-	int numportals = g_numportals * 2;
-
-	// Initialisation du bitmask portalvis (CPU → GPU)
-	std::vector<unsigned int> portalvis_flat(portallongs, 0u);
-	for (int i = 0; i < portallongs; ++i)
-		portalvis_flat[i] = ((long*)thread->base->portalvis)[i];
-
-	// Construction du portalflood_flat (tous les portails)
-	std::vector<unsigned int> portalflood_flat(numportals * portallongs, 0u);
-	for (int i = 0; i < numportals; ++i) {
-		portal_t* p = &portals[i];
-		long* src = (long*)p->portalflood;
-		for (int j = 0; j < portallongs; ++j)
-			portalflood_flat[i * portallongs + j] = src[j];
-	}
-
-	// Initialisation de la frontier (portails de la leaf de depart)
-	std::vector<int> frontier;
-	leaf_t* leaf = &leafs[leafnum];
-	for (int i = 0; i < leaf->portals.Count(); ++i) {
-		int pnum = leaf->portals[i] - portals;
-		if (CheckBit(prevstack->mightsee, pnum)) {
-			frontier.push_back(pnum);
-			std::ostringstream oss; oss << "Ajout portail " << pnum << " a la frontier initiale";
-			g_clManager.log(oss.str().c_str());
-		}
-	}
-
-	// Flood fill GPU
-	int step = 0;
-	while (!frontier.empty()) {
-		std::ostringstream oss; oss << "Etape " << step << " : frontier.size()=" << frontier.size();
-		g_clManager.log(oss.str().c_str());
-
-		std::vector<int> next_frontier;
-		bool ok = g_clManager.propagate(frontier, portalflood_flat, portalvis_flat, portallongs, next_frontier);
-		assert(ok && "propagate() OpenCL a echoue");
-
-		// Log des bits modifies
-		for (int idx : frontier) {
-			int pnum = idx;
-			for (int j = 0; j < portallongs; ++j) {
-				unsigned int vis = portalvis_flat[j];
-				std::ostringstream oss2; oss2 << "Portail " << pnum << " vis[" << j << "] = 0x" << std::hex << vis;
-				g_clManager.log(oss2.str().c_str());
-			}
-		}
-
-		frontier = next_frontier;
-		++step;
-	}
-
-	// Copie finale du bitmask GPU → CPU
-	for (int i = 0; i < portallongs; ++i)
-		((long*)thread->base->portalvis)[i] = portalvis_flat[i];
-
-	g_clManager.log("Flood fill GPU termine pour cette leaf.");
-}
-
+/*
 // --------------------
 // PortalFlow
 // --------------------
 // Version optimisee de PortalFlow
 */
+
 void PortalFlow(int iThread, int portalnum)
 {
 	// Recuperation du portail courant (attention : sorted_portals !)
@@ -1515,6 +1449,38 @@ void PortalFlow(int iThread, int portalnum)
 
 	// Indiquer que ce portail est traité
 	p->status = stat_done;
+}
+
+void PortalFlow_CPU(int iThread, int portalnum)
+{
+	threaddata_t	data;
+	int				i;
+	portal_t* p;
+	int				c_might, c_can;
+
+	p = sorted_portals[portalnum];
+	p->status = stat_working;
+
+	c_might = CountBits(p->portalflood, g_numportals * 2);
+
+	memset(&data, 0, sizeof(data));
+	data.base = p;
+
+	data.pstack_head.portal = p;
+	data.pstack_head.source = p->winding;
+	data.pstack_head.portalplane = p->plane;
+	for (i = 0; i < portallongs; i++)
+		((long*)data.pstack_head.mightsee)[i] = ((long*)p->portalflood)[i];
+
+	RecursiveLeafFlow_CPU(p->leaf, &data, &data.pstack_head);
+
+
+	p->status = stat_done;
+
+	c_can = CountBits(p->portalvis, g_numportals * 2);
+
+	qprintf("portal:%4i  mightsee:%4i  cansee:%4i (%i chains)\n",
+		(int)(p - portals), c_might, c_can, data.c_chains);
 }
 
 int		c_flood, c_vis;
