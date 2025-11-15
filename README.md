@@ -1,5 +1,10 @@
 # Source SDK 2013 — GMOD Tools X64 Mod
-## THIS PROJECT IS UNDER DEVELOPMENT!
+## This project is under development, but the GPU/OpenCL optimization is working!
+
+So yes, I did it, I created a GPU version of the VVIS tool specifically for GMOD. It uses OpenCL for GPU compatibility, and for a large open map like my Kindercity (it's a big city but with many more things inside), it only took 2 seconds to compile with my GPU (Rtx 4090). So try it out and enjoy this feature. I will compare many maps with the original VVIS and my GPU version to see the difference and what I can optimize. But for now, it works, and I've done the hardest part.
+
+### Here all the infos :
+
 Source code for **Source SDK 2013 GMOD (64-bit)** — custom-optimized build tools for **VBSP**, **VVIS**, and **VRAD**, primarily targeting performance improvements, GPU acceleration, and modern compiler compatibility.
 
 This repository is an experimental fork based on [Ficool2’s Source SDK 2013 fork](https://github.com/ficool2/source-sdk-2013), adapted specifically for **Garry’s Mod (64-bit)**.  
