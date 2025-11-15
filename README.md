@@ -1,7 +1,7 @@
 # Source SDK 2013 — GMOD Tools X64 Mod
-## This project is under development but the GPU/OpenCL optimization is fonctionnal !
+## This project is under development, but the GPU/OpenCL optimization is working!
 
-So yes, I made it, I created a GPU version of VVIS tool and especialy for GMOD. It used OpenCL for cross-GPU compatible and for a big and open map like my Kindercity (it's an bigcity but with way more things inside), it took only 2 sec to compile with my GPU (Rtx 4090). So test it and enjoy the feature. I will compare many maps with the original vvis and my GPU version to view the difference and what can I optimise. But actually it work and I made the hardest part.
+So yes, I did it, I created a GPU version of the VVIS tool specifically for GMOD. It uses OpenCL for GPU compatibility, and for a large open map like my Kindercity (it's a big city but with many more things inside), it only took 2 seconds to compile with my GPU (Rtx 4090). So try it out and enjoy this feature. I will compare many maps with the original VVIS and my GPU version to see the difference and what I can optimize. But for now, it works, and I've done the hardest part.
 
 ### Here all the infos :
 
